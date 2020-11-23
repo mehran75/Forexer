@@ -16,8 +16,8 @@ class Model:
 
 class Parameter:
     def __init__(self, config):
-        self.label = config['config']
-        self.time_window = config[]
+        self.label = config['label']
+        self.time_window = config['time-window']
         self.sequence_length = config['sequence-length']
         self.input_size = config['input-size']
         self.num_layers = config['num-layers']
@@ -34,7 +34,7 @@ class Data:
 
 
 def load_configuration():
-    with open("cofiguration/parameters.yml", 'r') as stream:
+    with open("configuration/parameters.yml", 'r') as stream:
         parameters = yaml.safe_load(stream)
     
     return Configuration(parameters)
