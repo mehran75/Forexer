@@ -1,7 +1,7 @@
 model :
-  type: "RNN" # options, "RNN", "LSTM" (NA), "GRU" (NA)
+  type: "RNN" # options, todo: "RNN", "LSTM" (NA), "GRU" (NA)
   pretrained-weights : "weight/eurcad.zip" # options: empty, or path to pre-trained model
-  mode : "test" # options : "train", "test"
+  mode : "train" # options : "train", "test"
   save-path: "weight/" # save model as "date-time-r2 score.zip"
   parameters: 
     label: 'Close'
@@ -10,6 +10,7 @@ model :
     input-size : 1
     num-layers : 2
     hidden-size : 256
+    batch-size : 256 # todo
     device : "cuda" # options: "cuda", "cpu"
     lr : 0.001 # learning rate
     num-epochs: 1

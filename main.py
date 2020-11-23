@@ -52,6 +52,10 @@ def train_model(model, num_epochs, criterion, optimizer, data):
     return model
 
 
+def to_tensor(a, device):
+    return torch.from_numpy(a).to(device)
+
+
 if __name__ == '__main__':
 
     print('\n********************************************************')
@@ -102,20 +106,16 @@ if __name__ == '__main__':
         # split to train and dev set
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=config.data.dev_size)
 
-        # to pytorch tensor
-        X_train = torch.from_numpy(X_train).to(device)
-        y_train = torch.from_numpy(y_train).to(device)
-        X_test = torch.from_numpy(X_test).to(device)
-        y_test = torch.from_numpy(y_test).to(device)
-
         # train model
         print('Training the model...')
-        model = train_model(model, num_epochs, criterion, optimizer, (X_train, X_test))
+        model = train_model(model, num_epochs, criterion, optimizer,
+                            (to_tensor(X_train, device), to_tensor(y_train, device)))
 
         # evaluating model
         print('Evaluating the model...')
-        y_preds = model.predict(X_test)
-        score = r2_score(y_preds.detach().numpy(), y_test.detach().numpy())
+        y_preds = model.predict(to_tensor(X_test, device))
+        y_preds = y_preds.cpu().detach().numpy()
+        score = r2_score(y_preds, y_test)
 
         if config.model.save_path != '':
             print('Saving model. path: {}'.format(config.model.save_path))
@@ -138,13 +138,11 @@ if __name__ == '__main__':
         # to sequence
         X_test, y_test = create_sequence(data, label, time_window)
 
-        X_test = torch.from_numpy(X_test).to(device)
-        y_test = torch.from_numpy(y_test).to(device)
-
         # evaluating model
         print('Evaluating the model...')
-        y_preds = model.predict(X_test)
-        score = r2_score(y_preds.detach().numpy(), y_test.detach().numpy())
+        y_preds = model.predict(to_tensor(X_test, device))
 
-print('R2 score: {:.3f}\nMSLE: {:.5f}'.format(score, mean_squared_log_error(y_preds.detach().numpy(),
-                                                                            y_test.detach().numpy())))
+        y_preds = y_preds.cpu().detach().numpy()
+        score = r2_score(y_preds, y_test)
+
+print('R2 score: {:.3f}\nMSLE: {:.5f}'.format(score, mean_squared_log_error(y_preds, y_test)))
