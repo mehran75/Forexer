@@ -1,21 +1,22 @@
+plot : true
 model :
   type: "RNN" # options, todo: "RNN", "LSTM" (NA), "GRU" (NA)
-  pretrained-weights : "weight/eurcad.zip" # options: empty, or path to pre-trained model
-  mode : "train" # options : "train", "test"
+  pretrained-weights : "weight/2020-11-24--01-470.934346.zip" # options: empty, or path to pre-trained model
+  mode : "test" # options : "train", "test"
   save-path: "weight/" # save model as "date-time-r2 score.zip"
   parameters: 
     label: 'Close'
     time-window: 10
     sequence-length : 9
     input-size : 1
-    num-layers : 2
+    num-layers : 3
     hidden-size : 256
     batch-size : 256 # todo
     device : "cuda" # options: "cuda", "cpu"
     lr : 0.001 # learning rate
-    num-epochs: 1
+    num-epochs: 5
 
 data :
   train-path : "dataset/EURCAD/EURCAD_Candlestick_1_M_ASK_01.01.2019-07.11.2020.csv"
-  test-path : "dataset/EURCAD/EURCAD_Candlestick_1_M_BID_09.11.2020-22.11.2020.csv"
+  test-path : "dataset/EURCAD/EURCAD_Candlestick_1_M_ASK_20.11.2020-21.11.2020.csv"
   dev-size : 0.2 # between "0.0" to "1.0". splits train-set 

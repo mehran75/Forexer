@@ -1,9 +1,12 @@
 import yaml
 
+
 class Configuration:
     def __init__(self, config):
+        self.plot = config['plot']
         self.model = Model(config['model'])
         self.data = Data(config['data'])
+
 
 class Model:
     def __init__(self, config):
@@ -13,6 +16,7 @@ class Model:
         self.save_path = config['save-path']
 
         self.parameters = Parameter(config['parameters'])
+
 
 class Parameter:
     def __init__(self, config):
@@ -25,6 +29,8 @@ class Parameter:
         self.device = config['device']
         self.lr = config['lr']
         self.num_epochs = config['num-epochs']
+        self.batch_size = config['batch-size']
+
 
 class Data:
     def __init__(self, config):
@@ -33,10 +39,8 @@ class Data:
         self.dev_size = config['dev-size']
 
 
-def load_configuration():
-    with open("configuration/parameters.yml", 'r') as stream:
+def load_configuration(config_path="configuration/parameters.yml"):
+    with open(config_path, 'r') as stream:
         parameters = yaml.safe_load(stream)
-    
+
     return Configuration(parameters)
-
-

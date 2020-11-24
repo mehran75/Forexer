@@ -1,0 +1,22 @@
+plot : true
+model :
+  type: "RNN" # options, todo: "RNN", "LSTM" (NA), "GRU" (NA)
+  pretrained-weights : "weight/eurusd/2020-11-24--11-370.890775.zip" # options: empty, or path to pre-trained model
+  mode : "test" # options : "train", "test"
+  save-path: "weight/eurusd/" # save model as "date-time-r2 score.zip"
+  parameters: 
+    label: 'Close'
+    time-window: 10
+    sequence-length : 9
+    input-size : 1
+    num-layers : 2
+    hidden-size : 256
+    batch-size : 1024
+    device : "cuda" # options: "cuda", "cpu"
+    lr : 0.001 # learning rate
+    num-epochs: 10
+
+data :
+  train-path : "dataset/EURUSD/EURUSD_Candlestick_1_M_BID_01.01.2018-21.11.2020.csv"
+  test-path : "dataset/EURUSD/EURUSD_Candlestick_1_M_BID_18.11.2020-24.11.2020.csv"
+  dev-size : 0.2 # between "0.0" to "1.0". splits train-set 
