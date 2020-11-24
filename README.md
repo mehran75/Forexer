@@ -1,4 +1,5 @@
 # Forexer
+RNN based forex predictor
 
 # Requirements
 * Pytorch
@@ -13,6 +14,6 @@ todo
 
 # pytorch not recognizing cuda
 ```
-sudo rmmod nvidia_uvm
-sudo modprobe nvidia_uvm
+$ sudo rmmod nvidia_uvm
+$ sudo modprobe nvidia_uvm
 ```
