@@ -9,6 +9,9 @@ from sklearn.model_selection import train_test_split
 from configuration.parser import load_configuration
 from core.RNN import SimpleRNN
 from datetime import datetime
+import sys
+import matplotlib.pyplot as plt
+import os
 
 
 def create_sequence(data, label, time_window):
@@ -67,7 +70,12 @@ if __name__ == '__main__':
     torch.set_default_tensor_type('torch.DoubleTensor')
 
     # load configurations
-    config = load_configuration()
+    config_path = sys.argv[1]
+    print(config_path)
+    if config_path != '':
+        config = load_configuration(config_path)
+    else:
+        config = load_configuration()
 
     # mapping parameters
     label = config.model.parameters.label
@@ -77,6 +85,7 @@ if __name__ == '__main__':
     seq_length = config.model.parameters.sequence_length
     num_layers = config.model.parameters.num_layers
     hidden_size = config.model.parameters.hidden_szie
+    batch_size = config.model.parameters.batch_size
     learning_rate = config.model.parameters.lr
     num_epochs = config.model.parameters.num_epochs
     device = torch.device('cuda' if torch.cuda.is_available() and config.model.parameters.device == 'cuda' else 'cpu')
@@ -108,7 +117,7 @@ if __name__ == '__main__':
 
         # train model
         print('Training the model...')
-        model = train_model(model, num_epochs, criterion, optimizer,
+        model.train_model(num_epochs, batch_size, criterion, optimizer,
                             (to_tensor(X_train, device), to_tensor(y_train, device)))
 
         # evaluating model
@@ -118,8 +127,14 @@ if __name__ == '__main__':
         score = r2_score(y_preds, y_test)
 
         if config.model.save_path != '':
-            print('Saving model. path: {}'.format(config.model.save_path))
             now = datetime.now()
+            print('Saving model. path: {}'.format(config.model.save_path +
+                                                  str(now.date()) +
+                                                  '--' +
+                                                  str(now.time())[:5].replace(':', '-') +
+                                                  '-{:3f}'.format(score) + '.zip'
+                                                  ))
+
             torch.save({
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
@@ -129,7 +144,7 @@ if __name__ == '__main__':
                 str(now.date()) +
                 '--' +
                 str(now.time())[:5].replace(':', '-') +
-                '{:3f}'.format(score) + '.zip')
+                '-{:3f}'.format(score) + '.zip')
 
     else:  # if config.model.mode == 'test':
         data = pd.read_csv(config.data.test_path)
@@ -145,4 +160,10 @@ if __name__ == '__main__':
         y_preds = y_preds.cpu().detach().numpy()
         score = r2_score(y_preds, y_test)
 
-print('R2 score: {:.3f}\nMSLE: {:.5f}'.format(score, mean_squared_log_error(y_preds, y_test)))
+        if config.plot:
+            plt.plot(y_preds[:-2], label='predict')
+            plt.plot(y_test[:-2], label='truth')
+            plt.legend()
+            plt.show(block=True)
+
+    print('R2 score: {:.3f}'.format(score))
