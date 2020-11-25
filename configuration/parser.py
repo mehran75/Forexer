@@ -4,6 +4,9 @@ import yaml
 class Configuration:
     def __init__(self, config):
         self.plot = config['plot']
+        self.delay = config['delay']
+        self.mode = config['mode']
+
         self.model = Model(config['model'])
         self.data = Data(config['data'])
 
@@ -12,7 +15,6 @@ class Model:
     def __init__(self, config):
         self.type = config['type']
         self.pre_trained = config['pretrained-weights']
-        self.mode = config['mode']
         self.save_path = config['save-path']
 
         self.parameters = Parameter(config['parameters'])
@@ -44,3 +46,4 @@ def load_configuration(config_path="configuration/parameters.yml"):
         parameters = yaml.safe_load(stream)
 
     return Configuration(parameters)
+
