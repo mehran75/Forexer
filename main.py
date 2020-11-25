@@ -1,3 +1,5 @@
+import time
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -12,6 +14,8 @@ from datetime import datetime
 import sys
 import matplotlib.pyplot as plt
 import os
+
+from dataset.streamer.streamer import Streamer
 
 
 def create_sequence(data, label, time_window):
@@ -97,6 +101,7 @@ if __name__ == '__main__':
 
     # loading pre-trained weights
     if config.model.pre_trained != '':
+        print('Loading pre-trained model')
         try:
             model_checkpoints = torch.load(config.model.pre_trained, map_location=device)
             model.load_state_dict(model_checkpoints['model_state_dict'])
@@ -105,7 +110,7 @@ if __name__ == '__main__':
         except Exception as e:
             print('failed to load the model properly. Error: {}'.format(e))
 
-    if config.model.mode == 'train':
+    if config.mode == 'train':
         data = pd.read_csv(config.data.train_path)
         print('Loaded {} data with shape of {}'.format(config.data.train_path, data.shape))
 
@@ -118,7 +123,7 @@ if __name__ == '__main__':
         # train model
         print('Training the model...')
         model.train_model(num_epochs, batch_size, criterion, optimizer,
-                            (to_tensor(X_train, device), to_tensor(y_train, device)))
+                          (to_tensor(X_train, device), to_tensor(y_train, device)))
 
         # evaluating model
         print('Evaluating the model...')
@@ -146,7 +151,9 @@ if __name__ == '__main__':
                 str(now.time())[:5].replace(':', '-') +
                 '-{:3f}'.format(score) + '.zip')
 
-    else:  # if config.model.mode == 'test':
+            print('R2 score: {:.3f}'.format(score))
+
+    elif config.mode == 'test':
         data = pd.read_csv(config.data.test_path)
         print('Loaded {} data with shape of {}'.format(config.data.train_path, data.shape))
 
@@ -159,6 +166,7 @@ if __name__ == '__main__':
 
         y_preds = y_preds.cpu().detach().numpy()
         score = r2_score(y_preds, y_test)
+        print('R2 score: {:.3f}'.format(score))
 
         if config.plot:
             plt.plot(y_preds[:-2], label='predict')
@@ -166,4 +174,19 @@ if __name__ == '__main__':
             plt.legend()
             plt.show(block=True)
 
-    print('R2 score: {:.3f}'.format(score))
+    elif config.mode == 'stream':
+
+        data = []
+        streamer = Streamer(data, seq_length,
+                            delay=config.delay,
+                            user=(os.environ.get('USERNAME'), os.environ.get('PASSWORD')))
+        streamer.start()
+
+        while True:
+            try:
+                print(data)  # todo: complete this
+                time.sleep(config.delay + 1)
+            except KeyboardInterrupt as ki:
+                print('Ctrl-c detected, stopping the streamer')
+                streamer.join()
+                break
