@@ -73,6 +73,3 @@ class SimpleRNN(nn.Module):
         self.train()
 
         return y_preds
-
-    def predict_stream(self, X):
-        pass

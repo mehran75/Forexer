@@ -33,34 +33,28 @@ def create_sequence(data, label, time_window):
     return X, y
 
 
-def train_model(model, num_epochs, criterion, optimizer, data):
-    X_train = data[0]
-    y_train = data[1]
-
-    for epoch in range(num_epochs):
-        for i in range(X_train.shape[0]):
-            optimizer.zero_grad()
-
-            scores = model(X_train[i].view(seq_length, 1, -1))
-            loss = criterion(scores, y_train[i])
-
-            loss.backward()
-
-            optimizer.step()
-
-            print('', end='\r epoch: {:3}/{:3}, loss: {:10.8f}, completed: {:.2f}%'.format(epoch + 1,
-                                                                                           num_epochs,
-                                                                                           loss.item(),
-                                                                                           (i / X_train.shape[
-                                                                                               0]) * 100))
-
-        print('\n')
-
-    return model
-
 
 def to_tensor(a, device):
     return torch.from_numpy(a).to(device)
+
+
+def extract_data(data, shape, start_index):
+    """
+
+    :param data: array of raw data
+    :param shape: required shape. e.g (input_size, sequence_length)
+    :param start_index: data[start_index:start_index+sequence_length]
+    :return: numpy array for
+    """
+
+    if len(data) == 0:
+        return None
+
+    seq = data[shape[0]: start_index + shape[1]+1]
+
+    seq = [''.join(i.split(',')[2:4]) for i in seq]
+    print(seq)
+    return np.array(seq, dtype=np.float).reshape(shape)
 
 
 if __name__ == '__main__':
@@ -107,6 +101,8 @@ if __name__ == '__main__':
             model.load_state_dict(model_checkpoints['model_state_dict'])
             optimizer.load_state_dict(model_checkpoints['optimizer_state_dict'])
             criterion.load_state_dict(model_checkpoints['criterion_state_dict'])
+        except KeyboardInterrupt as e:
+            exit(0)
         except Exception as e:
             print('failed to load the model properly. Error: {}'.format(e))
 
@@ -177,16 +173,47 @@ if __name__ == '__main__':
     elif config.mode == 'stream':
 
         data = []
+        X = np.zeros((0, seq_length))
+        y_prev = np.array([])
+        y = np.array([])
+
         streamer = Streamer(data, seq_length,
                             delay=config.delay,
                             user=(os.environ.get('USERNAME'), os.environ.get('PASSWORD')))
-        streamer.start()
 
-        while True:
-            try:
-                print(data)  # todo: complete this
+        try:
+            start_index = 0
+            streamer.start()
+            time.sleep(10)
+            while len(data) <= seq_length:
+                eta = (config.delay / 60) * (seq_length - (len(data)))
+                print('', end='\r preparing the first sequence. ETA: {}'.format(
+                    '{:.2f} min'.format(eta) if eta > 1 else '{} sec'.format(int(eta * 60))))
+                time.sleep(config.delay)
+
+            print('\n')
+            while True:
+                plt.close()
+                X = np.append(X, extract_data(data, (input_size, seq_length), start_index))
+                print(X)
+                pred = model.predict(torch.from_numpy(X).to(device))
+
+                y = np.append(y, pred.cpu().detach().numpy())
+                y_prev = np.append(y_prev, X[-1])
+
+                if config.plot:
+                    plt.plot(y, label='predict')
+                    plt.plot(y_prev, label='truth')
+                    plt.legend()
+                    plt.show()
+
+                start_index += 1
                 time.sleep(config.delay + 1)
-            except KeyboardInterrupt as ki:
-                print('Ctrl-c detected, stopping the streamer')
-                streamer.join()
-                break
+        except KeyboardInterrupt:
+            print('\nCtrl-c detected, stopping the streamer')
+            streamer.join()
+            exit(0)
+        except Exception as e:
+            print('\nAn error occurred, Error: {}'.format(e))
+            streamer.join()
+            exit(1)

@@ -24,7 +24,7 @@ class Parameter:
     def __init__(self, config):
         self.label = config['label']
         self.time_window = config['time-window']
-        self.sequence_length = config['sequence-length']
+        self.sequence_length = self.time_window - 1
         self.input_size = config['input-size']
         self.num_layers = config['num-layers']
         self.hidden_szie = config['hidden-size']
@@ -46,4 +46,3 @@ def load_configuration(config_path="configuration/parameters.yml"):
         parameters = yaml.safe_load(stream)
 
     return Configuration(parameters)
-

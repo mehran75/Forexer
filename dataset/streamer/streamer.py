@@ -60,13 +60,15 @@ class Streamer(Thread):
     def run(self):
         self.authenticate()
 
+        print('Streaming has started...')
         while not self.stop_running:  # todo: change the condition with ctrl+c command
 
             res = self.session.get(self.url, params={'id': self.id})
 
             if res.status_code == 200:
                 res = res.text.strip()
-                self.data.append(res)
+                if res != '' and res not in self.data:
+                    self.data.append(res)
 
             time.sleep(self.delay)
 
