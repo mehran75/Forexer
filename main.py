@@ -9,6 +9,7 @@ import pandas as pd
 from sklearn.metrics import r2_score, mean_squared_log_error
 from sklearn.model_selection import train_test_split
 from configuration.parser import load_configuration
+from core.GRU import SimpleGRU
 from core.RNN import SimpleRNN
 from datetime import datetime
 import sys
@@ -19,6 +20,13 @@ from dataset.streamer.streamer import Streamer
 
 
 def create_sequence(data, label, time_window):
+    """
+    create sequence from time series dataset
+    :param data:
+    :param label:
+    :param time_window:
+    :return:
+    """
     size = int(data.shape[0] / time_window) + data.size % time_window
 
     X = np.zeros((size, time_window - 1))
@@ -33,34 +41,49 @@ def create_sequence(data, label, time_window):
     return X, y
 
 
-def train_model(model, num_epochs, criterion, optimizer, data):
-    X_train = data[0]
-    y_train = data[1]
-
-    for epoch in range(num_epochs):
-        for i in range(X_train.shape[0]):
-            optimizer.zero_grad()
-
-            scores = model(X_train[i].view(seq_length, 1, -1))
-            loss = criterion(scores, y_train[i])
-
-            loss.backward()
-
-            optimizer.step()
-
-            print('', end='\r epoch: {:3}/{:3}, loss: {:10.8f}, completed: {:.2f}%'.format(epoch + 1,
-                                                                                           num_epochs,
-                                                                                           loss.item(),
-                                                                                           (i / X_train.shape[
-                                                                                               0]) * 100))
-
-        print('\n')
-
-    return model
-
-
 def to_tensor(a, device):
+    """
+    numpy array to PyTorch tensor
+    :param a: numpy array
+    :param device: 'cuda' or 'cpu'
+    :return: PyTorch tensor
+    """
     return torch.from_numpy(a).to(device)
+
+
+def prepare_model(type, input_size, hidden_size, seq_length, num_layers, device):
+    """
+    create and load the specified model
+
+    :param type: "RNN", "LSTM", or "GRU"
+    :param input_size: model parameters
+    :param hidden_size: model parameters
+    :param seq_length: model parameters
+    :param num_layers: model parameters
+    :param device: 'cuda' or 'cpu'
+    :return: model, criterion(loss function), optimizer
+    """
+
+    if type == 'RNN':
+        model = SimpleRNN(input_size, hidden_size, seq_length, num_layers, device).to(device)
+    elif type == 'GRU':
+        model = SimpleGRU(input_size, hidden_size, seq_length, num_layers, device).to(device)
+
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+
+    # loading pre-trained weights
+    if config.model.pre_trained != '':
+        print('Loading pre-trained model')
+        try:
+            model_checkpoints = torch.load(config.model.pre_trained, map_location=device)
+            model.load_state_dict(model_checkpoints['model_state_dict'])
+            optimizer.load_state_dict(model_checkpoints['optimizer_state_dict'])
+            criterion.load_state_dict(model_checkpoints['criterion_state_dict'])
+        except Exception as e:
+            print('failed to load the model properly. Error: {}'.format(e))
+
+    return model, criterion, optimizer
 
 
 if __name__ == '__main__':
@@ -95,20 +118,9 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() and config.model.parameters.device == 'cuda' else 'cpu')
 
     # creating model
-    model = SimpleRNN(input_size, hidden_size, seq_length, num_layers, device).to(device)
-    criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-    # loading pre-trained weights
-    if config.model.pre_trained != '':
-        print('Loading pre-trained model')
-        try:
-            model_checkpoints = torch.load(config.model.pre_trained, map_location=device)
-            model.load_state_dict(model_checkpoints['model_state_dict'])
-            optimizer.load_state_dict(model_checkpoints['optimizer_state_dict'])
-            criterion.load_state_dict(model_checkpoints['criterion_state_dict'])
-        except Exception as e:
-            print('failed to load the model properly. Error: {}'.format(e))
+    model, criterion, optimizer = prepare_model(config.model.type,
+                                                input_size, hidden_size, seq_length, num_layers, device)
 
     if config.mode == 'train':
         data = pd.read_csv(config.data.train_path)
