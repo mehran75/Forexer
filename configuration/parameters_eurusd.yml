@@ -1,5 +1,5 @@
 plot : true
-delay: 5 # seconds, only for "stream" mode
+delay: 30 # seconds, only for "stream" mode
 mode : "test" # options : "train", "test", "stream"
 
 model :
