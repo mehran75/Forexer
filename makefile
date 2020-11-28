@@ -4,7 +4,8 @@ export configuration_file = "configuration/parameters_eurusd.yml"
 
 # check if requirements exists
 # install if not
+# todo: install packages
 
-.PHONY: all
+
 run:
 	python main.py $(configuration_file)

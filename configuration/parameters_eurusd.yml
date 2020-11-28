@@ -1,14 +1,15 @@
 plot : true
-mode : "stream" # options : "train", "test", "stream"
-delay: 10 # seconds, only for "stream" mode
+delay: 5 # seconds, only for "stream" mode
+mode : "test" # options : "train", "test", "stream"
 
 model :
-  type: "RNN" # options, todo: "RNN", "LSTM" (NA), "GRU" (NA)
-  pretrained-weights : "weight/eurusd/2020-11-25--16-19-0.981270.zip" # options: empty, or path to pre-trained model
-  save-path: "weight/eurusd/" # save model as "date-time-r2 score.zip"
+  type: "LSTM" # options, todo: "RNN", "LSTM", "GRU"
+  pretrained-weights : "weight/eurusd/LSTM-2020-11-28--15-03-0.990421.zip" # options: empty, or path to pre-trained model
+  save-path: "weight/eurusd/" # save model as "type-date-time-r2 score.zip"
   parameters: 
     label: 'Close'
     time-window: 15
+    sequence-length : 14
     input-size : 1
     num-layers : 2
     hidden-size : 256
