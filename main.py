@@ -10,6 +10,7 @@ from sklearn.metrics import r2_score, mean_squared_log_error
 from sklearn.model_selection import train_test_split
 from configuration.parser import load_configuration
 from core.GRU import SimpleGRU
+from core.LSTM import SimpleLSTM
 from core.RNN import SimpleRNN
 from datetime import datetime
 import sys
@@ -68,6 +69,10 @@ def prepare_model(type, input_size, hidden_size, seq_length, num_layers, device)
         model = SimpleRNN(input_size, hidden_size, seq_length, num_layers, device).to(device)
     elif type == 'GRU':
         model = SimpleGRU(input_size, hidden_size, seq_length, num_layers, device).to(device)
+    elif type == 'LSTM':
+        model = SimpleLSTM(input_size, hidden_size, seq_length, num_layers, device).to(device)
+    else:
+        raise NotImplemented("type {} doesn't exist".format(type))
 
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
@@ -158,6 +163,7 @@ if __name__ == '__main__':
                 'criterion_state_dict': criterion.state_dict()
             },
                 config.model.save_path +
+                config.model.type + '-' +
                 str(now.date()) +
                 '--' +
                 str(now.time())[:5].replace(':', '-') +

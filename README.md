@@ -29,8 +29,11 @@ python main.py "configuration/parameters_eurusd.yml"
 GPU is available
 GPU device count: 1
 configuration/parameters_eurusd.yml
-Loading pre-trained model
-...
+Loaded dataset/EURUSD/EURUSD_Candlestick_1_M_BID_01.01.2018-21.11.2020.csv data with shape of (1516311, 6)
+Training the model...
+ epoch:   1/ 10, loss: 0.00138055, completed: 100.00%
+
+ epoch:   2/ 10, loss: 0.00128420, completed: 39.88%
 ```
 Note that you have to register in [truefx.com](http://truefx.com/) and put your username, and password in the `makefile`
 at the root of repository.
