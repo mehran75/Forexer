@@ -1,6 +1,6 @@
 plot : true
 mode : "stream" # options : "train", "test", "stream"
-delay: 5 # seconds, only for "stream" mode
+delay: 10 # seconds, only for "stream" mode
 
 model :
   type: "RNN" # options, todo: "RNN", "LSTM" (NA), "GRU" (NA)

@@ -33,7 +33,6 @@ def create_sequence(data, label, time_window):
     return X, y
 
 
-
 def to_tensor(a, device):
     return torch.from_numpy(a).to(device)
 
@@ -42,7 +41,7 @@ def extract_data(data, shape, start_index):
     """
 
     :param data: array of raw data
-    :param shape: required shape. e.g (input_size, sequence_length)
+    :param shape: required shape. e.g (batch_size, input_size, sequence_length)
     :param start_index: data[start_index:start_index+sequence_length]
     :return: numpy array for
     """
@@ -50,11 +49,10 @@ def extract_data(data, shape, start_index):
     if len(data) == 0:
         return None
 
-    seq = data[shape[0]: start_index + shape[1]+1]
+    seq = data[start_index: start_index + shape[2]]
 
     seq = [''.join(i.split(',')[2:4]) for i in seq]
-    print(seq)
-    return np.array(seq, dtype=np.float).reshape(shape)
+    return np.array(seq, dtype=np.float64).reshape(shape)
 
 
 if __name__ == '__main__':
@@ -173,9 +171,9 @@ if __name__ == '__main__':
     elif config.mode == 'stream':
 
         data = []
-        X = np.zeros((0, seq_length))
-        y_prev = np.array([])
-        y = np.array([])
+        X = np.zeros((0, input_size, seq_length))
+        Y = np.zeros((0, 1))
+        y_prev = np.zeros((0, 1))
 
         streamer = Streamer(data, seq_length,
                             delay=config.delay,
@@ -189,23 +187,33 @@ if __name__ == '__main__':
                 eta = (config.delay / 60) * (seq_length - (len(data)))
                 print('', end='\r preparing the first sequence. ETA: {}'.format(
                     '{:.2f} min'.format(eta) if eta > 1 else '{} sec'.format(int(eta * 60))))
-                time.sleep(config.delay)
+                time.sleep(config.delay / 2)
 
             print('\n')
+
             while True:
                 plt.close()
-                X = np.append(X, extract_data(data, (input_size, seq_length), start_index))
-                print(X)
-                pred = model.predict(torch.from_numpy(X).to(device))
+                x = extract_data(data, (1, input_size, seq_length), start_index)
+                pred = model.predict(torch.from_numpy(x).to(device))
 
-                y = np.append(y, pred.cpu().detach().numpy())
-                y_prev = np.append(y_prev, X[-1])
+                X = np.append(X, x, axis=0)
+                Y = np.append(Y, pred.cpu().detach().numpy(), axis=0)
 
                 if config.plot:
-                    plt.plot(y, label='predict')
-                    plt.plot(y_prev, label='truth')
+                    plt.plot(Y, label='predict')
+                    if start_index > 0:
+                        plt.plot(y_prev, label='truth')
                     plt.legend()
                     plt.show()
+
+                if start_index > 1:
+                    y_prev = np.append(y_prev, X[-1, 0, -2].reshape(1, -1), axis=0)
+                    print('Predicted {:.5f}, truth: {}'.format(Y[-1, 0], y_prev[-1]))
+
+                    model.train_model(1, 1, criterion, optimizer,
+                                      (torch.from_numpy(x).to(device), torch.from_numpy(y_prev[-1]).to(device)))
+                else:
+                    print('Predicted: {:.5f}'.format(Y[-1, 0]))
 
                 start_index += 1
                 time.sleep(config.delay + 1)
@@ -214,6 +222,5 @@ if __name__ == '__main__':
             streamer.join()
             exit(0)
         except Exception as e:
-            print('\nAn error occurred, Error: {}'.format(e))
             streamer.join()
-            exit(1)
+            raise e
