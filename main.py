@@ -3,10 +3,9 @@ import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
 import numpy as np
 import pandas as pd
-from sklearn.metrics import r2_score, mean_squared_log_error
+from sklearn.metrics import r2_score, mean_squared_error, mean_squared_log_error
 from sklearn.model_selection import train_test_split
 from configuration.parser import load_configuration
 from core.GRU import SimpleGRU
@@ -170,6 +169,8 @@ if __name__ == '__main__':
                 '-{:3f}'.format(score) + '.zip')
 
             print('R2 score: {:.3f}'.format(score))
+            print('MSE score: {:.6f}'.format(mean_squared_error(y_preds, y_test)))
+            print('MSLE score: {:.6f}'.format(mean_squared_log_error(y_preds, y_test)))
 
     elif config.mode == 'test':
         data = pd.read_csv(config.data.test_path)
@@ -184,7 +185,10 @@ if __name__ == '__main__':
 
         y_preds = y_preds.cpu().detach().numpy()
         score = r2_score(y_preds, y_test)
+
         print('R2 score: {:.3f}'.format(score))
+        print('MSE score: {:.6f}'.format(mean_squared_error(y_preds, y_test)))
+        print('MSLE score: {:.6f}'.format(mean_squared_log_error(y_preds, y_test)))
 
         if config.plot:
             plt.plot(y_preds[:-2], label='predict')
