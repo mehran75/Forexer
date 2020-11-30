@@ -1,78 +1,61 @@
-import time
-
 import requests
-from threading import Thread
 from datetime import datetime, timezone
+import json
+import numpy as np
 
 
-class Streamer(Thread):
+class Streamer:
     """
 
     """
-    SYMBOLS_ALL = ['EUR/USD', 'EUR/CAD', 'USD/JPY', 'GBP/USD', 'EUR/GBP', 'USD/CHF', 'AUD/NZD',
-                   'CAD/CHF', 'CHF/JPY', 'EUR/AUD', 'EUR/JPY', 'EUR/CHF', 'USD/CAD', 'EUR/NZD',
-                   'AUD/USD', 'GBP/JPY', 'AUD/CAD', 'AUD/CHF', 'AUD/JPY', 'EUR/NOK', 'USD/SEK',
-                   'GBP/CAD', 'GBP/CHF', 'NZD/JPY', 'NZD/USD', 'USD/NOK']
 
-    def __init__(self, data, sequence_length, **kwargs):
-        super(Streamer, self).__init__()
+    def __init__(self, **kwargs):
 
-        self.data = data  # shared variable
+        self.url = 'https://www.alphavantage.co/query'
 
-        self.sequence_length = sequence_length
-        self.url = 'https://webrates.truefx.com/rates/connect.html'
-        self.id = ''
-
-        self.stop_running = False
-        self.session = requests.session()
+        self.api_key = kwargs.get('apikey', 'demo')
 
         # optionals
-        self.delay = kwargs.get('delay', 1)
         self.file_path = kwargs.get('file_path', '')
-        self.username = kwargs.get('user', ['', ''])[0]
-        self.password = kwargs.get('user', ['', ''])[1]
-        self.currencies = kwargs.get('currency', [self.SYMBOLS_ALL[0]])
-
-    def authenticate(self):
-
-        print('Authenticating user: {}'.format(self.username))
-        res = self.session.get(self.url, params={
-            'u': self.username,
-            'p': self.password,
-            'q': 'defualt',
-            'f': 'csv',
-            'c': ','.join(self.currencies),
-            's': 'n'
-        })
-        if res.status_code != 200:
-            raise Exception('Failed to authenticate user. code: {}'.format(res.status_code))
-
-        self.id = res.text.strip()
-
-    def end_session(self):
-        self.session.get(self.url, params={
-            'di': self.id
-        })
+        self.function = kwargs.get('function', 'FX_INTRADAY')
+        self.interval = kwargs.get('interval', '1M')
+        self.from_symbol = kwargs.get('from_symbol', 'EUR')
+        self.to_symbol = kwargs.get('to_symbol', 'USD')
 
     def save_file(self, data, file_path):
         pass
 
-    def run(self):
-        self.authenticate()
+    def retrieve(self, label, shape):
+        """
+        send request to retrieve information
+        Note: call authenticate before calling this
+        :param label: label for training/predicting
+        :param shape: required shape. e.g (batch_size (not supported), input_size, sequence_length)
+        :return: numpy array of requested sequence
+        """
 
-        print('Streaming has started...')
-        while not self.stop_running:  # todo: change the condition with ctrl+c command
+        params = {
+            'function': self.function,
+            'from_symbol': self.from_symbol,
+            'to_symbol': self.to_symbol,
+            'interval': self.interval,
+            'apikey': self.api_key
+        }
+        res = requests.get(self.url, params=params)
 
-            res = self.session.get(self.url, params={'id': self.id})
+        if res.status_code != 200:
+            raise Exception("Could not receive correct data. response code: {}".format(res.status_code))
 
-            if res.status_code == 200:
-                res = res.text.strip()
-                if res != '' and res not in self.data:
-                    self.data.append(res)
+        j = json.loads(res.text.strip())
+        j = j[list(j.keys())[1]]
 
-            time.sleep(self.delay)
+        data = list(j.values())[0:shape[2]]
+        key = ''
+        for k in data[0].keys():
+            if label.lower() in k.lower():
+                key = k
+                break
 
-    def join(self):
-        self.stop_running = True
-        self.end_session()
-        super().join()
+        data = [d[key] for d in data]
+
+        return np.array(data, dtype=np.float64).reshape(shape)

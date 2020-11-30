@@ -1,12 +1,9 @@
-import time
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
 import numpy as np
 import pandas as pd
-from sklearn.metrics import r2_score, mean_squared_log_error
+from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 from configuration.parser import load_configuration
 from core.GRU import SimpleGRU
@@ -89,24 +86,6 @@ def prepare_model(type, input_size, hidden_size, seq_length, num_layers, device)
             print('failed to load the model properly. Error: {}'.format(e))
 
     return model, criterion, optimizer
-
-
-def extract_data(data, shape, start_index):
-    """
-
-    :param data: array of raw data
-    :param shape: required shape. e.g (batch_size, input_size, sequence_length)
-    :param start_index: data[start_index:start_index+sequence_length]
-    :return: numpy array for
-    """
-
-    if len(data) == 0:
-        return None
-
-    seq = data[start_index: start_index + shape[2]]
-
-    seq = [''.join(i.split(',')[2:4]) for i in seq]
-    return np.array(seq, dtype=np.float64).reshape(shape)
 
 
 if __name__ == '__main__':
@@ -217,52 +196,48 @@ if __name__ == '__main__':
         Y = np.zeros((0, 1))
         y_prev = np.zeros((0, 1))
 
-        streamer = Streamer(data, seq_length,
-                            delay=config.delay,
-                            user=(os.environ.get('USERNAME'), os.environ.get('PASSWORD')))
+        streamer = Streamer(apikey=os.environ.get('apikey', 'demo'),
+                            interval=config.currency.interval,
+                            from_symbol=config.currency.from_symbol,
+                            to_symbol=config.currency.to_symbol,
+                            function=config.currency.function)
 
         try:
             start_index = 0
-            streamer.start()
-            time.sleep(10)
-            while len(data) <= seq_length:
-                eta = (config.delay / 60) * (seq_length - (len(data)))
-                print('', end='\r preparing the first sequence. ETA: {}'.format(
-                    '{:.2f} min'.format(eta) if eta > 1 else '{} sec'.format(int(eta * 60))))
-                time.sleep(config.delay / 2)
-
-            print('\n')
-
             while True:
-                plt.close()
-                x = extract_data(data, (1, input_size, seq_length), start_index)
+
+                x = streamer.retrieve(label, (1, input_size, seq_length))
                 pred = model.predict(torch.from_numpy(x).to(device))
 
                 X = np.append(X, x, axis=0)
                 Y = np.append(Y, pred.cpu().detach().numpy(), axis=0)
 
+                if start_index > 0:
+                    y_prev = np.append(y_prev, X[-1, 0, -2].reshape(1, -1), axis=0)
+                    print('Predicted {:.5f}, truth: {}'.format(Y[-1, 0], y_prev[-1]))
+
+                    if config.stream_train:
+                        model.train_model(1, 1, criterion, optimizer,
+                                          (torch.from_numpy(x).to(device), torch.from_numpy(y_prev[-1]).to(device)))
+                else:
+                    print('Predicted: {:.5f}'.format(Y[-1, 0]))
+
+                feed = streamer.retrieve(label, (1, input_size, seq_length))
+                if type(feed) == int:
+                    raise Exception("Failed to receive new feed")
+                data.append(feed)
+
                 if config.plot:
+                    plt.clf()
                     plt.plot(Y, label='predict')
                     if start_index > 0:
                         plt.plot(y_prev, label='truth')
                     plt.legend()
-                    plt.show()
-
-                if start_index > 1:
-                    y_prev = np.append(y_prev, X[-1, 0, -2].reshape(1, -1), axis=0)
-                    print('Predicted {:.5f}, truth: {}'.format(Y[-1, 0], y_prev[-1]))
-
-                    model.train_model(1, 1, criterion, optimizer,
-                                      (torch.from_numpy(x).to(device), torch.from_numpy(y_prev[-1]).to(device)))
-                else:
-                    print('Predicted: {:.5f}'.format(Y[-1, 0]))
-
+                    plt.pause(config.currency.interval_to_seconds())
                 start_index += 1
-                time.sleep(config.delay + 1)
+
         except KeyboardInterrupt:
             print('\nCtrl-c detected, stopping the streamer')
-            streamer.join()
             exit(0)
         except Exception as e:
-            streamer.join()
             raise e

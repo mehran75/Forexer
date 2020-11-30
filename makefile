@@ -1,5 +1,4 @@
-export USERNAME = "<Username>"
-export PASSWORD = "<Password>"
+export apikey = "apikey from https://www.alphavantage.co/"
 export configuration_file = "configuration/parameters_eurusd.yml"
 
 # check if requirements exists

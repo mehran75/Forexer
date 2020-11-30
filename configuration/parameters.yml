@@ -1,23 +1,30 @@
 plot : true
-mode : "test" # options : "train", "test"
-delay: 5 # seconds, only for "stream" mode
+mode : "test" # options : "train", "test", "stream"
+stream-train: false # train the model after each interval
+
+currency:
+  from_symbol: EUR
+  to_symbol: USD
+  function: FX_INTRADAY # options: FX_INTRADAY, FX_DAILY, FX_WEEKLY, FX_MONTHLY
+  interval: 1min # only for "stream" mode and function "FX_INTRADAY", options: 1min, 5min, 15min, 30min, 60min
+
 
 model :
-  type: "RNN" # options, todo: "RNN", "LSTM" (NA), "GRU" (NA)
-  pretrained-weights : "weight/2020-11-24--01-470.934346.zip" # options: empty, or path to pre-trained model
-  save-path: "weight/" # save model as "date-time-r2 score.zip"
+  type: "LSTM" # options, todo: "RNN", "LSTM", "GRU"
+  pretrained-weights : "weight/eurusd/LSTM-2020-11-30--23-26--208.369623.zip" # options: empty, or path to pre-trained model
+  save-path: "weight/eurusd/" # save model as "type-date--time-r2 score.zip"
   parameters: 
-    label: 'Close'
-    time-window: 10
+    label: 'Open'
+    time-window: 21
     input-size : 1
-    num-layers : 3
-    hidden-size : 256
-    batch-size : 256 # todo
+    num-layers : 1
+    hidden-size : 128
+    batch-size : 512
     device : "cuda" # options: "cuda", "cpu"
     lr : 0.001 # learning rate
-    num-epochs: 5
+    num-epochs: 9
 
 data :
-  train-path : "dataset/EURCAD/EURCAD_Candlestick_1_M_ASK_01.01.2019-07.11.2020.csv"
-  test-path : "dataset/EURCAD/EURCAD_Candlestick_1_M_ASK_20.11.2020-21.11.2020.csv"
+  train-path : "dataset/EURUSD/EURUSD_Candlestick_1_M_BID_01.01.2018-21.11.2020.csv"
+  test-path : "dataset/EURUSD/EURUSD_Candlestick_1_M_BID_18.11.2020-24.11.2020.csv"
   dev-size : 0.2 # between "0.0" to "1.0". splits train-set 

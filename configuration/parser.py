@@ -4,11 +4,37 @@ import yaml
 class Configuration:
     def __init__(self, config):
         self.plot = config['plot']
-        self.delay = config['delay']
         self.mode = config['mode']
+        self.stream_train = config['stream-train']
 
+        self.currency = Currency(config['currency'])
         self.model = Model(config['model'])
         self.data = Data(config['data'])
+
+
+class Currency:
+    def __init__(self, config):
+        self.from_symbol = config['from_symbol']
+        self.to_symbol = config['to_symbol']
+        self.function = config['function']
+        self.interval = config['interval']
+
+    def interval_to_seconds(self):
+        key_map = {
+            '1min': 1 * 60,
+            '5min': 5 * 60,
+            '15min': 15 * 60,
+            '30min': 30 * 60,
+            '60min': 60 * 60,
+        }
+        if self.function == 'FX_INTRADAY':
+            return key_map[self.interval]
+        elif self.function == 'FX_DAILY':
+            return 3600 * 24
+        elif self.function == 'FX_WEEKLY':
+            return 3600 * 24 * 7
+        else:
+            Exception("Not Implemented")
 
 
 class Model:
