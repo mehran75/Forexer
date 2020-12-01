@@ -17,6 +17,10 @@ cd Forexer
 conda activate <env name> # if you have conda installed on your machine
 make run 
 ```
+Note that you have to register in [truefx.com](http://truefx.com/) and put your username, and password in the `makefile`
+at the root of repository.
+
+
 output:
 ```
 python main.py "configuration/parameters_eurusd.yml"
@@ -35,8 +39,13 @@ Training the model...
 
  epoch:   2/ 10, loss: 0.00128420, completed: 39.88%
 ```
-Note that you have to register in [truefx.com](http://truefx.com/) and put your username, and password in the `makefile`
-at the root of repository.
+
+test performance so far:
+![](assets/lstm.png?size=)
+
+
+
+
 
   
 

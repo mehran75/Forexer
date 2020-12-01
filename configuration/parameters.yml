@@ -1,6 +1,6 @@
 plot : true
-mode : "test" # options : "train", "test", "stream"
-stream-train: false # train the model after each interval
+mode : "stream" # options : "train", "test", "stream"
+stream-train:   false # train the model after each interval
 
 currency:
   from_symbol: EUR
@@ -11,7 +11,7 @@ currency:
 
 model :
   type: "LSTM" # options, todo: "RNN", "LSTM", "GRU"
-  pretrained-weights : "weight/eurusd/LSTM-2020-11-30--23-26--208.369623.zip" # options: empty, or path to pre-trained model
+  pretrained-weights : "weight/eurusd/LSTM-2020-12-01--14-25-0.987218.zip" # options: empty, or path to pre-trained model
   save-path: "weight/eurusd/" # save model as "type-date--time-r2 score.zip"
   parameters: 
     label: 'Open'
