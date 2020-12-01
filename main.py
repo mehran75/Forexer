@@ -1,16 +1,15 @@
-import time
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import pandas as pd
-from sklearn.metrics import r2_score, mean_squared_error, mean_squared_log_error
+from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 from configuration.parser import load_configuration
 from core.GRU import SimpleGRU
 from core.LSTM import SimpleLSTM
 from core.RNN import SimpleRNN
+from core.RMSLE import RMSLELoss
 from datetime import datetime
 import sys
 import matplotlib.pyplot as plt
@@ -73,7 +72,7 @@ def prepare_model(type, input_size, hidden_size, seq_length, num_layers, device)
     else:
         raise NotImplemented("type {} doesn't exist".format(type))
 
-    criterion = nn.MSELoss()
+    criterion = RMSLELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     # loading pre-trained weights
@@ -169,8 +168,6 @@ if __name__ == '__main__':
                 '-{:3f}'.format(score) + '.zip')
 
             print('R2 score: {:.3f}'.format(score))
-            print('MSE score: {:.6f}'.format(mean_squared_error(y_preds, y_test)))
-            print('MSLE score: {:.6f}'.format(mean_squared_log_error(y_preds, y_test)))
 
     elif config.mode == 'test':
         data = pd.read_csv(config.data.test_path)
@@ -185,10 +182,7 @@ if __name__ == '__main__':
 
         y_preds = y_preds.cpu().detach().numpy()
         score = r2_score(y_preds, y_test)
-
         print('R2 score: {:.3f}'.format(score))
-        print('MSE score: {:.6f}'.format(mean_squared_error(y_preds, y_test)))
-        print('MSLE score: {:.6f}'.format(mean_squared_log_error(y_preds, y_test)))
 
         if config.plot:
             plt.plot(y_preds[:-2], label='predict')
@@ -199,16 +193,52 @@ if __name__ == '__main__':
     elif config.mode == 'stream':
 
         data = []
-        streamer = Streamer(data, seq_length,
-                            delay=config.delay,
-                            user=(os.environ.get('USERNAME'), os.environ.get('PASSWORD')))
-        streamer.start()
+        X = np.zeros((0, input_size, seq_length))
+        Y = np.zeros((0, 1))
+        y_prev = np.zeros((0, 1))
 
-        while True:
-            try:
-                print(data)  # todo: complete this
-                time.sleep(config.delay + 1)
-            except KeyboardInterrupt as ki:
-                print('Ctrl-c detected, stopping the streamer')
-                streamer.join()
-                break
+        streamer = Streamer(apikey=os.environ.get('apikey', 'demo'),
+                            interval=config.currency.interval,
+                            from_symbol=config.currency.from_symbol,
+                            to_symbol=config.currency.to_symbol,
+                            function=config.currency.function)
+
+        try:
+            start_index = 0
+            while True:
+
+                x = streamer.retrieve(label, (1, input_size, seq_length))
+                pred = model.predict(torch.from_numpy(x).to(device))
+
+                X = np.append(X, x, axis=0)
+                Y = np.append(Y, pred.cpu().detach().numpy(), axis=0)
+
+                if start_index > 0:
+                    y_prev = np.append(y_prev, X[-1, 0, -2].reshape(1, -1), axis=0)
+                    print('Predicted {:.5f}, truth: {}'.format(Y[-1, 0], y_prev[-1]))
+
+                    if config.stream_train:
+                        model.train_model(1, 1, criterion, optimizer,
+                                          (torch.from_numpy(x).to(device), torch.from_numpy(y_prev[-1]).to(device)))
+                else:
+                    print('Predicted: {:.5f}'.format(Y[-1, 0]))
+
+                feed = streamer.retrieve(label, (1, input_size, seq_length))
+                if type(feed) == int:
+                    raise Exception("Failed to receive new feed")
+                data.append(feed)
+
+                if config.plot:
+                    plt.clf()
+                    plt.plot(Y, label='predict')
+                    if start_index > 0:
+                        plt.plot(y_prev, label='truth')
+                    plt.legend()
+                    plt.pause(config.currency.interval_to_seconds())
+                start_index += 1
+
+        except KeyboardInterrupt:
+            print('\nCtrl-c detected, stopping the streamer')
+            exit(0)
+        except Exception as e:
+            raise e
