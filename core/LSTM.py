@@ -32,6 +32,9 @@ class SimpleLSTM(nn.Module):
         X_train = data[0]
         y_train = data[1]
 
+        # input_lengths = torch.full(size=(batch_size,), fill_value=self.seq_length, dtype=torch.long)
+        # target_lengths = torch.ones(size=(batch_size,), dtype=torch.long)
+
         for epoch in range(num_epochs):
             counter = 0
             for i in range(batch_size, X_train.shape[0], batch_size):
@@ -39,7 +42,8 @@ class SimpleLSTM(nn.Module):
                 optimizer.zero_grad()
 
                 scores = self.forward(X_train[i - batch_size:i].view(self.seq_length, batch_size, -1))
-                loss = criterion(scores, y_train[i - batch_size:i])
+
+                loss = criterion(scores, y_train[i - batch_size:i] )
 
                 loss.backward()
 

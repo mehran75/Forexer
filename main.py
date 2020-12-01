@@ -9,6 +9,7 @@ from configuration.parser import load_configuration
 from core.GRU import SimpleGRU
 from core.LSTM import SimpleLSTM
 from core.RNN import SimpleRNN
+from core.RMSLE import RMSLELoss
 from datetime import datetime
 import sys
 import matplotlib.pyplot as plt
@@ -71,7 +72,7 @@ def prepare_model(type, input_size, hidden_size, seq_length, num_layers, device)
     else:
         raise NotImplemented("type {} doesn't exist".format(type))
 
-    criterion = nn.MSELoss()
+    criterion = RMSLELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     # loading pre-trained weights
