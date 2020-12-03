@@ -6,7 +6,7 @@ torch.set_default_tensor_type('torch.DoubleTensor')
 
 
 class SimpleLSTM(nn.Module):
-    def __init__(self, input_size, hidden_size, seq_length, num_layers, device):
+    def __init__(self, input_size, hidden_size, seq_length, num_layers, target_length, device):
         super(SimpleLSTM, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
@@ -15,7 +15,7 @@ class SimpleLSTM(nn.Module):
         self.seq_length = seq_length
 
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers)
-        self.fc = nn.Linear(hidden_size * seq_length, 1)
+        self.fc = nn.Linear(hidden_size * seq_length, target_length)
 
     def forward(self, x):
         x = x.to(self.device)
