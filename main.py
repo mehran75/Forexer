@@ -18,26 +18,26 @@ import os
 from dataset.streamer.streamer import Streamer
 
 
-def create_sequence(data, label, time_window):
+def create_sequence(data, label, lengths):
     """
     create sequence from time series dataset
-    :param data:
-    :param label:
-    :param time_window:
+    :param data: pandas dataframe
+    :param label: target label
+    :param lengths: tuple of (sequence_length, target_length)
     :return:
     """
-    size = int(data.shape[0] / time_window) + data.size % time_window
 
-    X = np.zeros((size, time_window - 1))
-    y = np.zeros((size, 1))
+    seq_length = lengths[0]
+    target_length = lengths[1]
 
-    counter = 0
-    for i in range(time_window, data.shape[0], time_window):
-        X[counter] = (data[label].values[i - time_window: i - 1])
-        y[counter] = (data[label].values[i])
-        counter += 1
+    inputs = np.zeros((data.shape[0] - target_length, seq_length))
+    targets = np.zeros((data.shape[0] - target_length, target_length))
 
-    return X, y
+    for index, i in enumerate(range(seq_length, data.shape[0] - target_length)):
+        inputs[index] = (data[label].values[i - seq_length: i])
+        targets[index] = (data[label].values[i: i + target_length])
+
+    return inputs, targets
 
 
 def to_tensor(a, device):
@@ -64,11 +64,11 @@ def prepare_model(type, input_size, hidden_size, seq_length, num_layers, device)
     """
 
     if type == 'RNN':
-        model = SimpleRNN(input_size, hidden_size, seq_length, num_layers, device).to(device)
+        model = SimpleRNN(input_size, hidden_size, seq_length, num_layers, target_length, device).to(device)
     elif type == 'GRU':
-        model = SimpleGRU(input_size, hidden_size, seq_length, num_layers, device).to(device)
+        model = SimpleGRU(input_size, hidden_size, seq_length, num_layers, target_length, device).to(device)
     elif type == 'LSTM':
-        model = SimpleLSTM(input_size, hidden_size, seq_length, num_layers, device).to(device)
+        model = SimpleLSTM(input_size, hidden_size, seq_length, num_layers, target_length, device).to(device)
     else:
         raise NotImplemented("type {} doesn't exist".format(type))
 
@@ -109,10 +109,10 @@ if __name__ == '__main__':
 
     # mapping parameters
     label = config.model.parameters.label
-    time_window = config.model.parameters.time_window
 
     input_size = config.model.parameters.input_size
     seq_length = config.model.parameters.sequence_length
+    target_length = config.model.parameters.target_length
     num_layers = config.model.parameters.num_layers
     hidden_size = config.model.parameters.hidden_szie
     batch_size = config.model.parameters.batch_size
@@ -122,23 +122,43 @@ if __name__ == '__main__':
 
     # creating model
 
-    model, criterion, optimizer = prepare_model(config.model.type,
-                                                input_size, hidden_size, seq_length, num_layers, device)
+    model, loss, optimizer = prepare_model(config.model.type,
+                                           input_size, hidden_size, seq_length, num_layers, device)
 
     if config.mode == 'train':
         data = pd.read_csv(config.data.train_path)
         print('Loaded {} data with shape of {}'.format(config.data.train_path, data.shape))
 
         # to sequence
-        X, y = create_sequence(data, label, time_window)
+        X, y = create_sequence(data, label, (seq_length, target_length))
 
         # split to train and dev set
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=config.data.dev_size)
 
         # train model
         print('Training the model...')
-        model.train_model(num_epochs, batch_size, criterion, optimizer,
+        model.train_model(num_epochs, batch_size, loss, optimizer,
                           (to_tensor(X_train, device), to_tensor(y_train, device)))
+
+        if config.model.save_path != '':
+            now = datetime.now()
+            print('Saving model. path: {}'.format(config.model.save_path +
+                                                  config.model.type + '-' +
+                                                  str(now.date()) +
+                                                  '--' +
+                                                  str(now.time())[:5].replace(':', '-') + '.zip'
+                                                  ))
+
+            torch.save({
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'criterion_state_dict': loss.state_dict()
+            },
+                config.model.save_path +
+                config.model.type + '-' +
+                str(now.date()) +
+                '--' +
+                str(now.time())[:5].replace(':', '-') + '.zip')
 
         # evaluating model
         print('Evaluating the model...')
@@ -146,35 +166,14 @@ if __name__ == '__main__':
         y_preds = y_preds.cpu().detach().numpy()
         score = r2_score(y_preds, y_test)
 
-        if config.model.save_path != '':
-            now = datetime.now()
-            print('Saving model. path: {}'.format(config.model.save_path +
-                                                  str(now.date()) +
-                                                  '--' +
-                                                  str(now.time())[:5].replace(':', '-') +
-                                                  '-{:3f}'.format(score) + '.zip'
-                                                  ))
-
-            torch.save({
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'criterion_state_dict': criterion.state_dict()
-            },
-                config.model.save_path +
-                config.model.type + '-' +
-                str(now.date()) +
-                '--' +
-                str(now.time())[:5].replace(':', '-') +
-                '-{:3f}'.format(score) + '.zip')
-
-            print('R2 score: {:.3f}'.format(score))
+        print('R2 score: {:.3f}'.format(score))
 
     elif config.mode == 'test':
         data = pd.read_csv(config.data.test_path)
         print('Loaded {} data with shape of {}'.format(config.data.train_path, data.shape))
 
         # to sequence
-        X_test, y_test = create_sequence(data, label, time_window)
+        X_test, y_test = create_sequence(data, label, (seq_length, target_length))
 
         # evaluating model
         print('Evaluating the model...')
@@ -209,19 +208,21 @@ if __name__ == '__main__':
 
                 x = streamer.retrieve(label, (1, input_size, seq_length))
                 pred = model.predict(torch.from_numpy(x).to(device))
+                pred = pred.cpu().detach().numpy().flatten()
 
                 X = np.append(X, x, axis=0)
-                Y = np.append(Y, pred.cpu().detach().numpy(), axis=0)
 
                 if start_index > 0:
+                    Y = np.append(Y, pred[-1])
                     y_prev = np.append(y_prev, X[-1, 0, -2].reshape(1, -1), axis=0)
-                    print('Predicted {:.5f}, truth: {}'.format(Y[-1, 0], y_prev[-1]))
+                    print('Predicted {:.5f}, truth: {}'.format(Y[-target_length], y_prev[-1]))
 
                     if config.stream_train:
-                        model.train_model(1, 1, criterion, optimizer,
+                        model.train_model(1, 1, loss, optimizer,
                                           (torch.from_numpy(x).to(device), torch.from_numpy(y_prev[-1]).to(device)))
                 else:
-                    print('Predicted: {:.5f}'.format(Y[-1, 0]))
+                    Y = np.append(Y, pred)
+                    print('Predicted: {:.5f}'.format(Y[-target_length]))
 
                 feed = streamer.retrieve(label, (1, input_size, seq_length))
                 if type(feed) == int:
@@ -230,7 +231,7 @@ if __name__ == '__main__':
 
                 if config.plot:
                     plt.clf()
-                    plt.plot(Y, label='predict')
+                    plt.plot(Y[:5 + y_prev.shape[0]], label='predict')
                     if start_index > 0:
                         plt.plot(y_prev, label='truth')
                     plt.legend()

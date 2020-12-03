@@ -46,16 +46,19 @@ class Streamer:
         if res.status_code != 200:
             raise Exception("Could not receive correct data. response code: {}".format(res.status_code))
 
-        j = json.loads(res.text.strip())
-        j = j[list(j.keys())[1]]
+        try:
+            j = json.loads(res.text.strip())
+            j = j[list(j.keys())[1]]
 
-        data = list(j.values())[0:shape[2]]
-        key = ''
-        for k in data[0].keys():
-            if label.lower() in k.lower():
-                key = k
-                break
+            data = list(j.values())[0:shape[2]]
+            key = ''
+            for k in data[0].keys():
+                if label.lower() in k.lower():
+                    key = k
+                    break
 
-        data = [d[key] for d in data]
-
+            data = [d[key] for d in data]
+        except Exception as e:
+            print(res.text)
+            raise e
         return np.array(data, dtype=np.float64).reshape(shape)

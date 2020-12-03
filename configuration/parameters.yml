@@ -11,18 +11,19 @@ currency:
 
 model :
   type: "LSTM" # options, todo: "RNN", "LSTM", "GRU"
-  pretrained-weights : "weight/eurusd/LSTM-2020-12-01--14-25-0.987218.zip" # options: empty, or path to pre-trained model
+  pretrained-weights : "weight/eurusd/LSTM-2020-12-03--12-59.zip" # options: empty, or path to pre-trained model
   save-path: "weight/eurusd/" # save model as "type-date--time-r2 score.zip"
   parameters: 
     label: 'Open'
-    time-window: 21
+    time-window: 30
+    preceding-window: 10
     input-size : 1
-    num-layers : 1
+    num-layers : 3
     hidden-size : 128
-    batch-size : 512
+    batch-size : 256
     device : "cuda" # options: "cuda", "cpu"
     lr : 0.001 # learning rate
-    num-epochs: 9
+    num-epochs: 1
 
 data :
   train-path : "dataset/EURUSD/EURUSD_Candlestick_1_M_BID_01.01.2018-21.11.2020.csv"

@@ -49,8 +49,8 @@ class Model:
 class Parameter:
     def __init__(self, config):
         self.label = config['label']
-        self.time_window = config['time-window']
-        self.sequence_length = self.time_window - 1
+        self.sequence_length = config['time-window']
+        self.target_length = config['preceding-window']
         self.input_size = config['input-size']
         self.num_layers = config['num-layers']
         self.hidden_szie = config['hidden-size']
